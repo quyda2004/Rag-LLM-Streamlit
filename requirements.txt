@@ -1,32 +1,31 @@
-# Core dependencies
-streamlit==1.38.0
-Flask==3.0.0
-werkzeug==3.0.1
+# Core Streamlit
+streamlit>=1.28.0
 
-# PDF processing
-PyPDF2==3.0.1
+# PDF processing - multiple options for better compatibility
+PyPDF2>=3.0.0
+PyMuPDF>=1.23.0
 
-# LangChain and related
-langchain==0.1.14
-langchain-google-genai==0.0.6
-langchain-community==0.0.30
+# LangChain ecosystem
+langchain>=0.1.0
+langchain-google-genai>=0.0.6
+langchain-community>=0.0.30
 
-# Embeddings
-sentence-transformers==2.6.1
+# Vector database - FAISS instead of ChromaDB
+faiss-cpu>=1.7.4
 
-# Vector database (using Chroma instead of FAISS)
-chromadb==0.4.15
+# Embeddings and ML
+sentence-transformers>=2.2.0
 
-# Additional utilities
+# Google AI
+google-generativeai>=0.3.0
+
+# Basic dependencies
 numpy>=1.24.0
-pandas>=2.0.0
+pandas>=1.5.0
+
+# Utility
 python-dotenv>=1.0.0
+typing-extensions>=4.5.0
 
-# Optional: Alternative vector stores if needed
-# pinecone-client>=2.2.0
-# qdrant-client>=1.7.0
-torch>=2.5.0
-torchvision>=0.21.0
-
-
-
+# Optional: Additional PDF processing tools
+pdfplumber>=0.9.0
