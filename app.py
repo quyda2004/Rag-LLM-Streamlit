@@ -1,7 +1,7 @@
 import streamlit as st
 import tempfile
 import os
-from rag_pipeline import Chatbot
+from rag_pipeline_faiss import Chatbot
 import traceback
 
 # Page config
@@ -128,12 +128,44 @@ def main():
     with st.sidebar:
         st.header("⚙️ Cài đặt")
         
-        # API Key input with help
-        api_key = st.text_input(
-            "🔑 Gemini API Key:", 
-            type="password",
-            help="Lấy API key từ https://makersuite.google.com/app/apikey"
-        )
+        # API Key input with multiple options
+        st.markdown("### 🔑 API Key Configuration")
+        
+        # Check if API key is in secrets (for deployment)
+        api_key_from_secrets = st.secrets.get("GOOGLE_API_KEY", "")
+        
+        if api_key_from_secrets:
+            st.success("✅ API Key đã được cấu hình trong secrets")
+            api_key = api_key_from_secrets
+            st.info("🔒 Sử dụng API key từ Streamlit secrets")
+        else:
+            api_key = st.text_input(
+                "🔑 Nhập Gemini API Key:", 
+                type="password",
+                help="Lấy API key từ https://makersuite.google.com/app/apikey",
+                placeholder="AIzaSy..."
+            )
+            
+            if api_key:
+                st.success("✅ API Key đã nhập")
+            else:
+                st.warning("⚠️ Cần API Key để sử dụng")
+                
+                with st.expander("❓ Làm thế nào để lấy API Key?"):
+                    st.markdown("""
+                    **Bước 1:** Truy cập [Google AI Studio](https://makersuite.google.com/app/apikey)
+                    
+                    **Bước 2:** Đăng nhập với tài khoản Google
+                    
+                    **Bước 3:** Nhấn "Create API Key" 
+                    
+                    **Bước 4:** Copy API key và dán vào ô trên
+                    
+                    **Lưu ý:** 
+                    - API key miễn phí có giới hạn sử dụng
+                    - Không chia sẻ API key với người khác
+                    - API key bắt đầu bằng "AIzaSy..."
+                    """)
         
         # Clear chat history button
         if st.button("🗑️ Xóa lịch sử chat", use_container_width=True):
@@ -357,4 +389,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
