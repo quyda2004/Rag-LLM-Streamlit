@@ -1,10 +1,27 @@
+# Core dependencies
 streamlit==1.38.0
 Flask==3.0.0
+werkzeug==3.0.1
+
+# PDF processing
 PyPDF2==3.0.1
+
+# LangChain and related
 langchain==0.1.14
 langchain-google-genai==0.0.6
 langchain-community==0.0.30
+
+# Embeddings
 sentence-transformers==2.6.1
+
+# Vector database (using Chroma instead of FAISS)
 chromadb==0.4.15
-faiss-cpu==1.8.0
-werkzeug==3.0.1
+
+# Additional utilities
+numpy>=1.24.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
+
+# Optional: Alternative vector stores if needed
+# pinecone-client>=2.2.0
+# qdrant-client>=1.7.0
