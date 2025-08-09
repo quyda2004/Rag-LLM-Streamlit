@@ -43,8 +43,9 @@ class Chatbot:
             google_api_key=google_api_key
         )
         
+        # Use Gemini 1.5 Flash as requested
         self.llm = GoogleGenerativeAI(
-            model="gemini-pro",
+            model="gemini-1.5-flash",
             google_api_key=google_api_key,
             temperature=0.1
         )
@@ -212,8 +213,9 @@ class Chatbot:
                 google_api_key=google_api_key
             )
             
+            # Use Gemini 1.5 Flash
             self.llm = GoogleGenerativeAI(
-                model="gemini-pro",
+                model="gemini-1.5-flash",
                 google_api_key=google_api_key,
                 temperature=0.1
             )
@@ -288,6 +290,8 @@ class Chatbot:
                 return "❌ Đã vượt quá giới hạn API. Vui lòng thử lại sau hoặc kiểm tra quota API key."
             elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
                 return "❌ Lỗi quyền truy cập API. Vui lòng kiểm tra API key."
+            elif "not found" in error_msg.lower() or "404" in error_msg.lower():
+                return "❌ Model không được hỗ trợ. Vui lòng cập nhật code với model mới."
             else:
                 return f"❌ Lỗi xử lý câu hỏi: {error_msg}"
 
