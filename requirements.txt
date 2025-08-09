@@ -4,7 +4,7 @@ Flask==3.0.0
 werkzeug==3.0.1
 
 # PDF processing
-PyPDF2==3.0.1
+PyPDF2
 
 # LangChain and related
 langchain==0.1.14
@@ -25,3 +25,4 @@ python-dotenv>=1.0.0
 # Optional: Alternative vector stores if needed
 # pinecone-client>=2.2.0
 # qdrant-client>=1.7.0
+
