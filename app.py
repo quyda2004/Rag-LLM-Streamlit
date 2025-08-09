@@ -1,7 +1,7 @@
 import streamlit as st
 import tempfile
 import os
-from rag_pipeline_faiss import Chatbot
+from rag_pipeline import Chatbot
 import traceback
 
 # Page config
@@ -357,3 +357,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
