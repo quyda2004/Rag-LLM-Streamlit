@@ -25,4 +25,7 @@ python-dotenv>=1.0.0
 # Optional: Alternative vector stores if needed
 # pinecone-client>=2.2.0
 # qdrant-client>=1.7.0
+torch==2.2.0
+torchvision==0.17.0
+torchaudio==2.2.0
 
