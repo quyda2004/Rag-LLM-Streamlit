@@ -110,29 +110,21 @@ class Chatbot:
             return False
 
     def create_vectorstore(self):
-        """Tạo Chroma vector store không dùng SQLite"""
+        """Tạo vector store in-memory (không dùng SQLite)"""
         if not self.chunks:
             return False
-    
         try:
             embeddings = self.SentenceTransformerEmbeddings(model_name=self.embedding_model)
-    
-            # Chạy in-memory → bỏ persist_directory
             self.vectorstore = Chroma.from_texts(
                 texts=self.chunks,
                 embedding=embeddings,
-                persist_directory=None  # Không lưu ra SQLite
+                persist_directory=None  # in-memory, tránh lỗi SQLite
             )
-    
-            self.retriever = self.vectorstore.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": 5}
-            )
-    
-            print("Tạo vector store bằng Chroma (in-memory) thành công!")
+            self.retriever = self.vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+            print("Vector store (in-memory) đã tạo xong")
             return True
         except Exception as e:
-            print(f"Lỗi khi tạo vector store: {str(e)}")
+            print(f"Lỗi tạo vector store: {str(e)}")
             return False
 
 
@@ -269,4 +261,5 @@ class Chatbot:
     def __del__(self):
         """Destructor để dọn dẹp tài nguyên"""
         self.cleanup()
+
 
