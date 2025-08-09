@@ -110,33 +110,31 @@ class Chatbot:
             return False
 
     def create_vectorstore(self):
-        """Tạo Chroma vector store thay thế FAISS"""
+        """Tạo Chroma vector store không dùng SQLite"""
         if not self.chunks:
             return False
-
+    
         try:
-            # Create temporary directory for Chroma
-            self.temp_dir = tempfile.mkdtemp()
-
             embeddings = self.SentenceTransformerEmbeddings(model_name=self.embedding_model)
-
-            # Use Chroma instead of FAISS
+    
+            # Chạy in-memory → bỏ persist_directory
             self.vectorstore = Chroma.from_texts(
                 texts=self.chunks,
                 embedding=embeddings,
-                persist_directory=self.temp_dir
+                persist_directory=None  # Không lưu ra SQLite
             )
-
+    
             self.retriever = self.vectorstore.as_retriever(
                 search_type="similarity",
                 search_kwargs={"k": 5}
             )
-
-            print("Tạo vector store bằng Chroma thành công!")
+    
+            print("Tạo vector store bằng Chroma (in-memory) thành công!")
             return True
         except Exception as e:
             print(f"Lỗi khi tạo vector store: {str(e)}")
             return False
+
 
     def init_llm(self):
         """Khởi tạo LLM Gemini với error handling"""
@@ -271,3 +269,4 @@ class Chatbot:
     def __del__(self):
         """Destructor để dọn dẹp tài nguyên"""
         self.cleanup()
+
