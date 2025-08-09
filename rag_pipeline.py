@@ -2,18 +2,20 @@ import os
 import re
 import PyPDF2
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-# from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain_google_genai import ChatGoogleGenerativeAI
 from sentence_transformers import SentenceTransformer
 from langchain.embeddings.base import Embeddings
 from langchain.prompts import PromptTemplate
+import tempfile
+import shutil
 
 
 class Chatbot:
     class SentenceTransformerEmbeddings(Embeddings):
         """Wrapper tích hợp SentenceTransformer vào LangChain"""
+
         def __init__(self, model_name="all-MiniLM-L6-v2"):
             self.model = SentenceTransformer(model_name)
 
@@ -35,98 +37,193 @@ class Chatbot:
         self.llm = None
         self.qa_chain = None
         self.prompt = None
+        self.temp_dir = None
 
     def read_pdf(self):
-        """Đọc nội dung từ file PDF"""
-        with open(self.pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            num_pages = len(reader.pages)
-            print(f"Tổng số trang: {num_pages}")
+        """Đọc nội dung từ file PDF với error handling"""
+        try:
+            with open(self.pdf_path, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                num_pages = len(reader.pages)
+                print(f"Tổng số trang: {num_pages}")
 
-            text = ""
-            for i in range(num_pages):
-                page = reader.pages[i]
-                text += page.extract_text() + "\n"
+                text = ""
+                for i in range(num_pages):
+                    page = reader.pages[i]
+                    page_text = page.extract_text()
+                    if page_text:  # Check if text was extracted
+                        text += page_text + "\n"
 
-            self.text = text
-            print("Đọc PDF xong!")
+                if not text.strip():
+                    raise ValueError("Không thể trích xuất văn bản từ PDF")
+
+                self.text = text
+                print("Đọc PDF xong!")
+                return True
+        except Exception as e:
+            print(f"Lỗi khi đọc PDF: {str(e)}")
+            return False
 
     def clean_text(self):
-        """Làm sạch nội dung văn bản"""
-        text = self.text.replace("\n", " ")
-        text = re.sub(r'\s+', ' ', text)
-        text = text.lower().strip()
-        self.cleaned_text = text
-        print("Làm sạch văn bản xong!")
+        """Làm sạch nội dung văn bản với cải tiến"""
+        if not self.text:
+            return False
 
-    def split_text(self, chunk_size=500, chunk_overlap=80):
-        """Chia văn bản thành nhiều đoạn nhỏ"""
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
-        )
-        self.chunks = splitter.split_text(self.cleaned_text)
-        print(f"Số đoạn sau khi chia: {len(self.chunks)}")
+        try:
+            # Remove extra whitespace and normalize
+            text = self.text.replace("\n", " ")
+            text = re.sub(r'\s+', ' ', text)
+
+            # Remove special characters but keep Vietnamese characters
+            text = re.sub(r'[^\w\sàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]', ' ', text)
+            text = re.sub(r'\s+', ' ', text)
+
+            # Keep original case for better context
+            text = text.strip()
+            self.cleaned_text = text
+            print("Làm sạch văn bản xong!")
+            return True
+        except Exception as e:
+            print(f"Lỗi khi làm sạch văn bản: {str(e)}")
+            return False
+
+    def split_text(self, chunk_size=1000, chunk_overlap=200):
+        """Chia văn bản thành nhiều đoạn nhỏ với cải tiến"""
+        if not self.cleaned_text:
+            return False
+
+        try:
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                separators=["\n\n", "\n", ".", "!", "?", " ", ""]
+            )
+            self.chunks = splitter.split_text(self.cleaned_text)
+
+            # Filter out very short chunks
+            self.chunks = [chunk for chunk in self.chunks if len(chunk.strip()) > 50]
+
+            print(f"Số đoạn sau khi chia: {len(self.chunks)}")
+            return len(self.chunks) > 0
+        except Exception as e:
+            print(f"Lỗi khi chia văn bản: {str(e)}")
+            return False
 
     def create_vectorstore(self):
-        """Tạo FAISS vector store từ các chunk"""
-        embeddings = self.SentenceTransformerEmbeddings(model_name=self.embedding_model)
-        self.vectorstore = FAISS.from_texts(self.chunks, embeddings)
-        self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
-        print("Tạo vector store bằng FAISS thành công!")
+        """Tạo Chroma vector store thay thế FAISS"""
+        if not self.chunks:
+            return False
+
+        try:
+            # Create temporary directory for Chroma
+            self.temp_dir = tempfile.mkdtemp()
+
+            embeddings = self.SentenceTransformerEmbeddings(model_name=self.embedding_model)
+
+            # Use Chroma instead of FAISS
+            self.vectorstore = Chroma.from_texts(
+                texts=self.chunks,
+                embedding=embeddings,
+                persist_directory=self.temp_dir
+            )
+
+            self.retriever = self.vectorstore.as_retriever(
+                search_type="similarity",
+                search_kwargs={"k": 5}
+            )
+
+            print("Tạo vector store bằng Chroma thành công!")
+            return True
+        except Exception as e:
+            print(f"Lỗi khi tạo vector store: {str(e)}")
+            return False
 
     def init_llm(self):
-        """Khởi tạo LLM Gemini"""
-        os.environ["GOOGLE_API_KEY"] = self.google_api_key
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            temperature=0.2,
-            convert_system_message_to_human=True
-        )
-        print("Khởi tạo LLM Gemini thành công!")
+        """Khởi tạo LLM Gemini với error handling"""
+        try:
+            if not self.google_api_key or self.google_api_key == "YOUR_DEFAULT_GOOGLE_API_KEY":
+                raise ValueError("Cần cung cấp Google API Key hợp lệ")
+
+            os.environ["GOOGLE_API_KEY"] = self.google_api_key
+            self.llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                temperature=0.3,
+                convert_system_message_to_human=True
+            )
+            print("Khởi tạo LLM Gemini thành công!")
+            return True
+        except Exception as e:
+            print(f"Lỗi khi khởi tạo LLM: {str(e)}")
+            return False
 
     def set_prompt(self):
-        """Định nghĩa prompt template"""
+        """Định nghĩa prompt template cải tiến"""
         template = """
-        Bạn là một trợ lý AI thông minh. Hãy trả lời câu hỏi dựa trên ngữ cảnh dưới đây:
+        Bạn là một trợ lý AI thông minh và hữu ích. Hãy phân tích kỹ ngữ cảnh được cung cấp và trả lời câu hỏi một cách chính xác.
 
-        Ngữ cảnh:
+        NGỮ CẢNH:
         {context}
 
-        Câu hỏi:
-        {question}
+        CÂU HỎI: {question}
 
-        Yêu cầu:
-        - Trả lời rõ ràng, dễ hiểu, súc tích.
-        - Nếu không có thông tin trong ngữ cảnh, trả lời: 'Xin lỗi, tôi không tìm thấy thông tin.'
+        HƯỚNG DẪN:
+        1. Đọc kỹ ngữ cảnh và tìm thông tin liên quan đến câu hỏi
+        2. Trả lời bằng tiếng Việt, rõ ràng và chi tiết
+        3. Nếu thông tin không đầy đủ, hãy nói rõ phần nào chưa có thông tin
+        4. Trích dẫn thông tin từ ngữ cảnh khi có thể
+        5. Nếu không tìm thấy thông tin trong ngữ cảnh, trả lời: "Tôi không tìm thấy thông tin về vấn đề này trong tài liệu được cung cấp."
+
+        TRẢ LỜI:
         """
+
         self.prompt = PromptTemplate(
             template=template,
             input_variables=["context", "question"]
         )
         print("Prompt template đã được thiết lập!")
+        return True
 
     def build_qa_chain(self):
-        """Tạo RetrievalQA chain với Prompt"""
-        if not self.llm or not self.retriever or not self.prompt:
-            raise ValueError("Cần khởi tạo LLM, Retriever và Prompt trước.")
+        """Tạo RetrievalQA chain với error handling"""
+        if not all([self.llm, self.retriever, self.prompt]):
+            print("Thiếu thành phần để tạo QA chain")
+            return False
 
-        self.qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            retriever=self.retriever,
-            chain_type="stuff",
-            chain_type_kwargs={"prompt": self.prompt}
-        )
-        print("Tạo QA chain với prompt xong!")
+        try:
+            self.qa_chain = RetrievalQA.from_chain_type(
+                llm=self.llm,
+                retriever=self.retriever,
+                chain_type="stuff",
+                chain_type_kwargs={"prompt": self.prompt},
+                return_source_documents=False
+            )
+            print("Tạo QA chain với prompt xong!")
+            return True
+        except Exception as e:
+            print(f"Lỗi khi tạo QA chain: {str(e)}")
+            return False
 
     def ask(self, query):
-        """Đặt câu hỏi và trả về câu trả lời"""
+        """Đặt câu hỏi và trả về câu trả lời với error handling"""
         if not self.qa_chain:
-            raise ValueError("QA Chain chưa được khởi tạo.")
-        return self.qa_chain.run(query)
+            return "Lỗi: QA Chain chưa được khởi tạo."
+
+        if not query or not query.strip():
+            return "Vui lòng nhập câu hỏi."
+
+        try:
+            response = self.qa_chain.run(query.strip())
+            return response
+        except Exception as e:
+            print(f"Lỗi khi xử lý câu hỏi: {str(e)}")
+            return f"Xin lỗi, đã có lỗi xảy ra khi xử lý câu hỏi: {str(e)}"
 
     def reset(self, pdf_path, google_api_key):
         """Tạo lại pipeline khi upload file mới hoặc đổi API Key"""
+        # Clean up old resources
+        self.cleanup()
+
+        # Reset all attributes
         self.pdf_path = pdf_path
         self.google_api_key = google_api_key
         self.text = ""
@@ -138,10 +235,39 @@ class Chatbot:
         self.qa_chain = None
         self.prompt = None
 
-        self.read_pdf()
-        self.clean_text()
-        self.split_text()
-        self.create_vectorstore()
-        self.init_llm()
-        self.set_prompt()
-        self.build_qa_chain()
+        # Execute pipeline
+        try:
+            steps = [
+                ("Đọc PDF", self.read_pdf),
+                ("Làm sạch văn bản", self.clean_text),
+                ("Chia văn bản", self.split_text),
+                ("Tạo vector store", self.create_vectorstore),
+                ("Khởi tạo LLM", self.init_llm),
+                ("Thiết lập prompt", self.set_prompt),
+                ("Tạo QA chain", self.build_qa_chain)
+            ]
+
+            for step_name, step_func in steps:
+                print(f"Đang thực hiện: {step_name}...")
+                if not step_func():
+                    raise Exception(f"Thất bại ở bước: {step_name}")
+
+            print("Hoàn thành khởi tạo chatbot!")
+            return True
+
+        except Exception as e:
+            print(f"Lỗi trong quá trình khởi tạo: {str(e)}")
+            self.cleanup()
+            return False
+
+    def cleanup(self):
+        """Dọn dẹp tài nguyên"""
+        if self.temp_dir and os.path.exists(self.temp_dir):
+            try:
+                shutil.rmtree(self.temp_dir)
+            except Exception as e:
+                print(f"Lỗi khi dọn dẹp thư mục tạm: {str(e)}")
+
+    def __del__(self):
+        """Destructor để dọn dẹp tài nguyên"""
+        self.cleanup()
