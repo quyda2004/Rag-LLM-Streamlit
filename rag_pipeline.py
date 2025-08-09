@@ -2,8 +2,8 @@ import os
 import re
 import PyPDF2
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain_community.vectorstores import FAISS
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
+# from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain_google_genai import ChatGoogleGenerativeAI
 from sentence_transformers import SentenceTransformer
@@ -71,10 +71,9 @@ class Chatbot:
     def create_vectorstore(self):
         """Tạo FAISS vector store từ các chunk"""
         embeddings = self.SentenceTransformerEmbeddings(model_name=self.embedding_model)
-        # self.vectorstore = FAISS.from_texts(self.chunks, embeddings)
-        self.vectorstore = Chroma.from_texts(self.chunks, embeddings)
+        self.vectorstore = FAISS.from_texts(self.chunks, embeddings)
         self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
-        print("Tạo vector store thành công!")
+        print("Tạo vector store bằng FAISS thành công!")
 
     def init_llm(self):
         """Khởi tạo LLM Gemini"""
@@ -125,6 +124,7 @@ class Chatbot:
         if not self.qa_chain:
             raise ValueError("QA Chain chưa được khởi tạo.")
         return self.qa_chain.run(query)
+
     def reset(self, pdf_path, google_api_key):
         """Tạo lại pipeline khi upload file mới hoặc đổi API Key"""
         self.pdf_path = pdf_path
@@ -145,25 +145,3 @@ class Chatbot:
         self.init_llm()
         self.set_prompt()
         self.build_qa_chain()
-
-
-
-# # =================== Cách sử dụng ===================
-# if __name__ == "__main__":
-#     chatbot = Chatbot(
-#         pdf_path="CV_LeQuocAn_DS.pdf",
-#         google_api_key="AIzaSyCfoTVtgwW3GhF20gPZ0wGz1g27-Vg-Ayc"
-#     )
-#
-#     chatbot.read_pdf()
-#     chatbot.clean_text()
-#     chatbot.split_text()
-#     chatbot.create_vectorstore()
-#     chatbot.init_llm()
-#     chatbot.set_prompt()
-#     chatbot.build_qa_chain()
-#
-#     # Đặt câu hỏi
-#     answer = chatbot.ask("Gemini là gì và nó dùng để làm gì?")
-#     print("Câu trả lời:")
-#     print(answer)
