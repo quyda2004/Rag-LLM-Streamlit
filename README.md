@@ -48,9 +48,9 @@ flowchart TD
     FLIP0 --> SPLIT[05_split_images.py\nCắt dọc giữa\nTách 2 trang]
     SPLIT --> Z0_NEW[Ảnh mới sau tách\n2 trang]
 
-    %% Sau tách mới chạy CNN để detect hướng / nhãn
-    Z0_NEW --> CNN2[02_page_intelligence - CNN\nDetect lại ảnh sau tách\nRa nhãn: 1/2/3/4]
-    CNN2 --> BR2{Tách nhánh sau tách}
+    %% SAU TÁCH: xét MANUAL luôn cho 1/2/3/4 (không chạy CNN)
+    Z0_NEW --> M_AFTER[Manual QA sau tách\nGán nhãn 1/2/3/4]
+    M_AFTER --> BR2{Tách nhánh sau tách}
 
     BR2 -->|1| OK1_FROM0[OK loại 1\nTừ nhánh 0]
 
